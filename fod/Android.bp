@@ -19,7 +19,11 @@ meizu_sm8150_fod_hal_binary {
     defaults: ["hidl_defaults"],
     name: "lineage.biometrics.fingerprint.inscreen@1.0-service.meizu_sm8150",
     init_rc: ["lineage.biometrics.fingerprint.inscreen@1.0-service.meizu_sm8150.rc"],
-    srcs: ["service.cpp", "FingerprintInscreen.cpp"],
+    srcs: [
+        "KeyEventWatcher.cpp",
+        "FingerprintInscreen.cpp",
+        "service.cpp",
+    ],
     shared_libs: [
         "libbase",
         "libhardware",
@@ -28,6 +32,7 @@ meizu_sm8150_fod_hal_binary {
         "liblog",
         "libhwbinder",
         "libutils",
+        "libcutils",
         "vendor.lineage.biometrics.fingerprint.inscreen@1.0",
         "vendor.goodix.hardware.biometrics.fingerprint@2.1",
     ],

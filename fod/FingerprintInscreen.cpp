@@ -15,13 +15,17 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "FingerprintInscreenService"
+#define LOG_TAG "InscreenService"
 
 #include "FingerprintInscreen.h"
+#include "KeyEventWatcher.h"
+
+#include <cutils/properties.h>
 #include <android-base/logging.h>
 #include <hidl/HidlTransportSupport.h>
 #include <fstream>
 #include <cmath>
+#include <thread>
 
 #define FINGERPRINT_ACQUIRED_VENDOR 6
 
@@ -34,7 +38,10 @@
 
 #define BOOST_ENABLE_PATH "/sys/class/meizu/fp/qos_set"
 #define HBM_ENABLE_PATH "/sys/class/meizu/lcm/display/hbm"
-#define BRIGHTNESS_PATH "/sys/class/backlight/panel0-backlight/brightness"
+
+#define TOUCHPANAL_DEV_PATH "/dev/input/" FOD_INPUT
+
+#define KEY_FOD 0x0272
 
 namespace vendor {
 namespace lineage {
@@ -62,8 +69,27 @@ static T get(const std::string& path, const T& def) {
     return file.fail() ? def : result;
 }
 
-FingerprintInscreen::FingerprintInscreen() {
+static KeyEventWatcher *keyEventWatcher;
+
+static void sighandler(int) {
+    LOG(INFO) << "Exiting";
+    keyEventWatcher->exit();
+}
+
+FingerprintInscreen::FingerprintInscreen()
+    : mHBM{0}
+    , mIconShown{false}
+    , mFingerPressed{false}
+    {
     this->mGoodixFpDaemon = IGoodixFingerprintDaemon::getService();
+
+    keyEventWatcher = new KeyEventWatcher(TOUCHPANAL_DEV_PATH, [this](const std::string&, input_event evt) {
+        if (evt.code == KEY_FOD) {
+            notifyKeyEvent(evt.value);
+        }
+    });
+
+    signal(SIGTERM, sighandler);
 }
 
 Return<int32_t> FingerprintInscreen::getPositionX() {
@@ -87,24 +113,34 @@ Return<void> FingerprintInscreen::onFinishEnroll() {
 }
 
 Return<void> FingerprintInscreen::onPress() {
-    set(HBM_ENABLE_PATH, 1);
-    notifyHal(NOTIFY_FINGER_DOWN);
+    mFingerPressed = true;
+    set(BOOST_ENABLE_PATH, 1);
+    std::thread([this]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(150));
+        if (mFingerPressed) {
+            notifyHal(NOTIFY_FINGER_DOWN);
+        }
+    }).detach();
     return Void();
 }
 
 Return<void> FingerprintInscreen::onRelease() {
-    set(HBM_ENABLE_PATH, 0);
+    mFingerPressed = false;
     notifyHal(NOTIFY_FINGER_UP);
     return Void();
 }
 
 Return<void> FingerprintInscreen::onShowFODView() {
-    set(BOOST_ENABLE_PATH, 1);
+    mIconShown = true;
+    mHBM = get(HBM_ENABLE_PATH, 0);
+    set(HBM_ENABLE_PATH, 1);
     notifyHal(NOTIFY_UI_READY);
     return Void();
 }
 
 Return<void> FingerprintInscreen::onHideFODView() {
+    mIconShown = false;
+    set(HBM_ENABLE_PATH, mHBM);
     notifyHal(NOTIFY_UI_DISAPPER);
     return Void();
 }
@@ -122,17 +158,42 @@ Return<void> FingerprintInscreen::setLongPressEnabled(bool) {
 }
 
 Return<int32_t> FingerprintInscreen::getDimAmount(int32_t) {
-    int brightness = get(BRIGHTNESS_PATH, 0);
-    float alpha = 1.0 - pow(brightness / 1023.0f, 0.455);
-    return 255.0f * alpha;
+    return 0;
 }
 
 Return<bool> FingerprintInscreen::shouldBoostBrightness() {
     return false;
 }
 
-Return<void> FingerprintInscreen::setCallback(const sp<IFingerprintInscreenCallback>&) {
+Return<void> FingerprintInscreen::setCallback(const sp<IFingerprintInscreenCallback>& callback) {
+    std::lock_guard<std::mutex> _lock(mCallbackLock);
+    mCallback = callback;
     return Void();
+}
+
+void FingerprintInscreen::notifyKeyEvent(int value) {
+    if (!mIconShown) {
+        return;
+    }
+
+    LOG(INFO) << "notifyKeyEvent: " << value;
+
+    std::lock_guard<std::mutex> _lock(mCallbackLock);
+    if (mCallback == nullptr) {
+        return;
+    }
+
+    if (value) {
+        Return<void> ret = mCallback->onFingerDown();
+        if (!ret.isOk()) {
+            LOG(ERROR) << "FingerDown() error: " << ret.description();
+        }
+    } else {
+        Return<void> ret = mCallback->onFingerUp();
+        if (!ret.isOk()) {
+            LOG(ERROR) << "FingerUp() error: " << ret.description();
+        }
+    }
 }
 
 void FingerprintInscreen::notifyHal(int32_t cmd) {

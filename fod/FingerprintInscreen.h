@@ -58,6 +58,14 @@ class FingerprintInscreen : public IFingerprintInscreen {
   private:
     sp<IGoodixFingerprintDaemon> mGoodixFpDaemon;
 
+    std::mutex mCallbackLock;
+    sp<IFingerprintInscreenCallback> mCallback;
+
+    int32_t mHBM;
+    bool mIconShown;
+    bool mFingerPressed;
+
+    void notifyKeyEvent(int value);
     void notifyHal(int32_t cmd);
 };
 

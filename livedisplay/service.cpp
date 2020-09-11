@@ -23,12 +23,13 @@
 #include <binder/ProcessState.h>
 #include <hidl/HidlTransportSupport.h>
 
+#include "DisplayModes.h"
 #include "PictureAdjustment.h"
 #include "SunlightEnhancement.h"
 
 constexpr const char* SDM_DISP_LIBS[]{
-    "libsdm-disp-apis.qti.so",
-    "libsdm-disp-apis.so",
+        "libsdm-disp-apis.qti.so",
+        "libsdm-disp-apis.so",
 };
 
 using android::OK;
@@ -37,9 +38,11 @@ using android::status_t;
 using android::hardware::configureRpcThreadpool;
 using android::hardware::joinRpcThreadpool;
 
+using ::vendor::lineage::livedisplay::V2_0::IDisplayModes;
 using ::vendor::lineage::livedisplay::V2_0::IPictureAdjustment;
 using ::vendor::lineage::livedisplay::V2_0::ISunlightEnhancement;
 using ::vendor::lineage::livedisplay::V2_0::sdm::PictureAdjustment;
+using ::vendor::lineage::livedisplay::V2_0::sysfs::DisplayModes;
 using ::vendor::lineage::livedisplay::V2_0::sysfs::SunlightEnhancement;
 
 int main() {
@@ -51,6 +54,7 @@ int main() {
     uint64_t cookie = 0;
 
     // HIDL frontend
+    sp<DisplayModes> dm;
     sp<PictureAdjustment> pa;
     sp<SunlightEnhancement> se;
 
@@ -77,14 +81,14 @@ int main() {
     }
 
     disp_api_init =
-        reinterpret_cast<int32_t (*)(uint64_t*, uint32_t)>(dlsym(libHandle, "disp_api_init"));
+            reinterpret_cast<int32_t (*)(uint64_t*, uint32_t)>(dlsym(libHandle, "disp_api_init"));
     if (disp_api_init == nullptr) {
         LOG(ERROR) << "Can not get disp_api_init from " << libName << " (" << dlerror() << ")";
         goto shutdown;
     }
 
     disp_api_deinit =
-        reinterpret_cast<int32_t (*)(uint64_t, uint32_t)>(dlsym(libHandle, "disp_api_deinit"));
+            reinterpret_cast<int32_t (*)(uint64_t, uint32_t)>(dlsym(libHandle, "disp_api_deinit"));
     if (disp_api_deinit == nullptr) {
         LOG(ERROR) << "Can not get disp_api_deinit from " << libName << " (" << dlerror() << ")";
         goto shutdown;
@@ -98,15 +102,8 @@ int main() {
 
     pa = new PictureAdjustment(libHandle, cookie);
     if (pa == nullptr) {
-        LOG(ERROR)
-            << "Can not create an instance of LiveDisplay HAL PictureAdjustment Iface, exiting.";
-        goto shutdown;
-    }
-
-    se = new SunlightEnhancement();
-    if (se == nullptr) {
-        LOG(ERROR)
-            << "Can not create an instance of LiveDisplay HAL SunlightEnhancement Iface, exiting.";
+        LOG(ERROR) << "Can not create an instance of LiveDisplay HAL PictureAdjustment Iface, "
+                      "exiting.";
         goto shutdown;
     }
 
@@ -115,7 +112,29 @@ int main() {
         goto shutdown;
     }
 
+    dm = new DisplayModes();
+    if (dm == nullptr) {
+        LOG(ERROR) << "Can not create an instance of LiveDisplay HAL DisplayModes Iface, exiting.";
+        goto shutdown;
+    }
+
+    se = new SunlightEnhancement();
+    if (se == nullptr) {
+        LOG(ERROR) << "Can not create an instance of LiveDisplay HAL SunlightEnhancement Iface, "
+                      "exiting.";
+        goto shutdown;
+    }
+
     configureRpcThreadpool(1, true /*callerWillJoin*/);
+
+    if (dm->isSupported()) {
+        status = dm->registerAsService();
+        if (status != OK) {
+            LOG(ERROR) << "Could not register service for LiveDisplay HAL DisplayModes Iface ("
+                       << status << ")";
+            goto shutdown;
+        }
+    }
 
     if (pa->isSupported()) {
         status = pa->registerAsService();

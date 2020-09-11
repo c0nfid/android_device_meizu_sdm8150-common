@@ -22,11 +22,9 @@ TARGET_SCREEN_WIDTH := 1080
 # Properties
 PRODUCT_COMPATIBLE_PROPERTY_OVERRIDE := true
 
-# VNDK
-PRODUCT_TARGET_VNDK_VERSION := 28
-
 # Permissions
 PRODUCT_COPY_FILES += \
+    frameworks/native/data/etc/android.hardware.telephony.ims.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/android.hardware.telephony.ims.xml \
     frameworks/native/data/etc/handheld_core_hardware.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/handheld_core_hardware.xml \
     vendor/lineage/config/permissions/vendor.lineage.biometrics.fingerprint.inscreen.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/vendor.lineage.biometrics.fingerprint.inscreen.xml
 
@@ -39,6 +37,10 @@ PRODUCT_PACKAGES += \
     audio.a2dp.default \
     libaacwrapper
 
+PRODUCT_COPY_FILES += \
+    frameworks/av/services/audiopolicy/config/a2dp_audio_policy_configuration.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/a2dp_audio_policy_configuration.xml \
+    $(LOCAL_PATH)/audio/audio_policy_configuration.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/audio_policy_configuration.xml
+
 # Display
 PRODUCT_PACKAGES += \
     libdisplayconfig \
@@ -50,6 +52,11 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     lineage.biometrics.fingerprint.inscreen@1.0-service.meizu_sm8150
 
+# IMS
+PRODUCT_PACKAGES += \
+    ims-ext-common \
+    ims_ext_common.xml
+
 # Init
 PRODUCT_PACKAGES += \
     init.qcom.rc
@@ -60,6 +67,7 @@ PRODUCT_PACKAGES += \
 
 # LiveDisplay
 PRODUCT_PACKAGES += \
+    lineage.livedisplay@2.0-init.sh \
     lineage.livedisplay@2.0-service-meizu_sm8150
 
 # Media
@@ -77,10 +85,10 @@ PRODUCT_PACKAGES += \
 PRODUCT_BOOT_JARS += \
     telephony-ext
 
+# Touch
+PRODUCT_PACKAGES += \
+    lineage.touch@1.0-service.meizu_sm8150
+
 # Vibrator
 PRODUCT_PACKAGES += \
     android.hardware.vibrator@1.2-service.meizu_sm8150
-
-# VNDK-SP
-PRODUCT_PACKAGES += \
-    vndk-sp
