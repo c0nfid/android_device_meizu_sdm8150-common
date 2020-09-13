@@ -193,4 +193,21 @@ persist.vendor.sensors.enable.mag_filter=true
 # to be used for a particular region where the default
 # network location provider is not functional
 ro.location.osnlp.package=com.google.android.gms
-ro.location.osnlp.region.package=
+
+#Add volte assert for m1882
+persist.dbg.ims_volte_enable=1
+persist.dbg.volte_avail_ovr=1
+persist.dbg.vt_avail_ovr=1
+persist.dbg.wfc_avail_ovr=1
+persist.radio.rat_on=combine
+persist.radio.data_ltd_sys_ind=1
+persist.radio.data_con_rprt=1
+persist.radio.calls.on.ims=1
+
+#Property to auto detect region for system 
+#Thanks to TRANSGENDER21 about this prop
+ro.regionalization.support=true
+
+net.tcp.buffersize.lte=524288,1048576,209715 88,1048576,2097152
+
+

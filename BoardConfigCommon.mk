@@ -46,7 +46,6 @@ BOARD_PREBUILT_DTBOIMAGE := $(DEVICE_PATH)/prebuilt/dtbo.img
 
 # Platform
 BOARD_USES_QCOM_HARDWARE := true
-BUILD_WITHOUT_VENDOR := true
 TARGET_BOARD_PLATFORM := msmnile
 TARGET_BOARD_PLATFORM_GPU := qcom-adreno640
 
@@ -115,8 +114,7 @@ PRODUCT_FULL_TREBLE_OVERRIDE := true
 PRODUCT_EXTRA_VNDK_VERSIONS := 28
 
 # Verified Boot
-BOARD_AVB_ENABLE := true
-BOARD_AVB_MAKE_VBMETA_IMAGE_ARGS += --flag 3
+BOARD_AVB_ENABLE := false
 
 # Inherit from the proprietary version
 -include vendor/meizu/sm8150-common/BoardConfigVendor.mk
